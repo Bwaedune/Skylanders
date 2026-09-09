@@ -11,6 +11,7 @@ import { Vec2, rectsOverlap, dist } from '../engine/Vec';
 import { Camera } from '../engine/Camera';
 import { Input } from '../engine/Input';
 import { SaveManager } from '../save/SaveManager';
+import { Ambience } from './Ambience';
 
 export type LevelStatus = 'playing' | 'won' | 'lost';
 
@@ -66,6 +67,7 @@ export class Level {
   private effects: Effect[] = [];
   private save: SaveManager;
   private turret: { pos: Vec2; timer: number; tickTimer: number } | null = null;
+  private ambience: Ambience;
   collectedGlimmer = 0;
   collectedShards = 0;
 
@@ -73,6 +75,7 @@ export class Level {
     this.def = def;
     this.save = save;
     this.map = new TileMap({ rows: def.map });
+    this.ambience = new Ambience(this.map.worldWidth(), this.map.worldHeight());
 
     this.player = new Player(
       def.playerStart.gx * TILE_SIZE + TILE_SIZE / 2,
@@ -133,6 +136,7 @@ export class Level {
     this.updateEnemies(dt);
     this.updateTurret(dt);
     this.updateEffects(dt);
+    this.ambience.update(dt);
     this.checkExit();
 
     if (this.player.health <= 0) {
@@ -497,7 +501,7 @@ export class Level {
     ctx.save();
     this.camera.apply(ctx);
 
-    this.map.render(ctx, this.def.biome);
+    this.map.render(ctx, this.def.biome, this.time);
 
     for (const b of this.barriers) b.render(ctx);
     for (const g of this.gates) g.render(ctx);
@@ -533,6 +537,25 @@ export class Level {
       ctx.globalAlpha = 1;
     }
 
+    this.ambience.render(ctx);
+
     ctx.restore();
+
+    this.renderVignette(ctx, viewW, viewH);
+  }
+
+  private renderVignette(ctx: CanvasRenderingContext2D, viewW: number, viewH: number): void {
+    const grad = ctx.createRadialGradient(
+      viewW / 2,
+      viewH / 2,
+      Math.min(viewW, viewH) * 0.35,
+      viewW / 2,
+      viewH / 2,
+      Math.max(viewW, viewH) * 0.72,
+    );
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.4)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, viewW, viewH);
   }
 }

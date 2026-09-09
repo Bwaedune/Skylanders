@@ -11,7 +11,23 @@
   --text-dim: #a7add0;
   --danger: #e05f5f;
   --good: #5fe07a;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   font-family: 'Nunito', sans-serif;
+}
+
+.screen::before,
+.card::before,
+.hud-panel::before,
+.overlay .panel::before,
+.dialogue-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain);
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 * {
@@ -173,6 +189,7 @@ body {
   gap: 8px;
   text-align: left;
   position: relative;
+  overflow: hidden;
 }
 
 .card.locked {
@@ -283,6 +300,8 @@ body {
   border-radius: 10px;
   padding: 8px 12px;
   pointer-events: all;
+  position: relative;
+  overflow: hidden;
 }
 
 .cooldown-ring {
@@ -331,6 +350,8 @@ body {
   flex-direction: column;
   gap: 12px;
   min-width: 280px;
+  position: relative;
+  overflow: hidden;
 }
 
 .small-hint {
