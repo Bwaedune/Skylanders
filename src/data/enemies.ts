@@ -4,7 +4,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'ash-imp': {
     name: 'Ash Imp',
     shape: 'goblin',
-    body: '#7a3a2a',
+    body: '#4a4552',
     accent: '#ff8c42',
     eye: '#ffdf7a',
     health: 30,
@@ -19,7 +19,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'cinder-bat': {
     name: 'Cinder Bat',
     shape: 'hawk',
-    body: '#5a2a2a',
+    body: '#3d2140',
     accent: '#ff6a3d',
     eye: '#ffe27a',
     health: 22,

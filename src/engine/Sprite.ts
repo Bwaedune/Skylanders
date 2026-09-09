@@ -172,60 +172,88 @@ function eyeDot(ctx: CanvasRenderingContext2D, x: number, y: number, color: stri
 }
 
 function drawWolf(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
-  // snout flame mane (drawn first, sits behind the body)
-  ctx.fillStyle = bodyRadial(ctx, -14, -2, 12, v.accent);
+  const tailWag = Math.sin(s.walkPhase * Math.PI * 4) * 6;
+
+  // bushy tail, sweeping up behind the body — the wolf's signature silhouette cue
+  ctx.fillStyle = bodyRadial(ctx, -22, -6, 10, v.accent);
   ctx.beginPath();
-  ctx.moveTo(-14, -2);
-  ctx.quadraticCurveTo(-22, -10 - Math.sin(s.walkPhase * 8) * 3, -10, -8);
-  ctx.quadraticCurveTo(-20, 2, -6, 6);
+  ctx.moveTo(-14, 4);
+  ctx.quadraticCurveTo(-26, 2 + tailWag, -28, -10 + tailWag);
+  ctx.quadraticCurveTo(-24, -14 + tailWag, -18, -6);
+  ctx.quadraticCurveTo(-20, -2, -12, 2);
+  ctx.closePath();
   ctx.fill();
   outline(ctx, 1.2);
-
-  ctx.fillStyle = bodyRadial(ctx, 0, 0, 14, v.body);
+  ctx.strokeStyle = darken(v.accent, 0.25);
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(0, 0, 14, 11, 0, 0, Math.PI * 2);
+  ctx.moveTo(-16, 0);
+  ctx.lineTo(-25, -5 + tailWag);
+  ctx.stroke();
+
+  // long, low, lupine body
+  ctx.fillStyle = bodyRadial(ctx, -1, 1, 16, v.body);
+  ctx.beginPath();
+  ctx.ellipse(-1, 1, 16, 8.5, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx);
+  // back mane ridge
+  ctx.fillStyle = v.accent;
+  ctx.beginPath();
+  ctx.moveTo(-10, -6);
+  ctx.lineTo(-4, -11);
+  ctx.lineTo(2, -6);
+  ctx.lineTo(-4, -4);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
   // belly fur texture
   ctx.strokeStyle = darken(v.body, 0.25);
   ctx.lineWidth = 1;
-  for (let i = -8; i <= 8; i += 4) {
+  for (let i = -10; i <= 8; i += 4) {
     ctx.beginPath();
-    ctx.moveTo(i, 3);
-    ctx.lineTo(i - 2, 9);
+    ctx.moveTo(i, 5);
+    ctx.lineTo(i - 2, 9.5);
     ctx.stroke();
   }
 
-  // head
-  ctx.fillStyle = bodyRadial(ctx, 14, -4, 9, v.body);
+  // head with a distinctly pointed snout
+  ctx.fillStyle = bodyRadial(ctx, 13, -5, 8, v.body);
   ctx.beginPath();
-  ctx.ellipse(14, -4, 9, 8, 0, 0, Math.PI * 2);
+  ctx.ellipse(13, -5, 7.5, 6.5, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx, 1.3);
-  // ears
-  ctx.fillStyle = v.accent;
+  ctx.fillStyle = bodyRadial(ctx, 21, -2, 5, v.body);
   ctx.beginPath();
-  ctx.moveTo(10, -10);
-  ctx.lineTo(13, -18);
-  ctx.lineTo(16, -10);
+  ctx.moveTo(17, -6);
+  ctx.lineTo(26, -1.5);
+  ctx.lineTo(17, 2);
+  ctx.closePath();
   ctx.fill();
   outline(ctx, 1.1);
-  eyeDot(ctx, 18, -5, v.eye);
-  // snout shading
-  ctx.fillStyle = darken(v.body, 0.2);
+  ctx.fillStyle = '#2a1a12';
   ctx.beginPath();
-  ctx.ellipse(21, -1, 3.4, 2.4, 0, 0, Math.PI * 2);
+  ctx.arc(25, -1.5, 1.3, 0, Math.PI * 2);
   ctx.fill();
+  // sharp perked ears
+  ctx.fillStyle = v.accent;
+  ctx.beginPath();
+  ctx.moveTo(9, -9);
+  ctx.lineTo(11, -19);
+  ctx.lineTo(15, -10);
+  ctx.fill();
+  outline(ctx, 1.1);
+  eyeDot(ctx, 15, -6, v.eye);
 
   // legs
   ctx.fillStyle = darken(v.accent, 0.1);
   const legOffset = Math.sin(s.walkPhase * Math.PI * 2) * 4;
-  ctx.fillRect(-8 + legOffset, 6, 4, 8);
-  ctx.fillRect(4 - legOffset, 6, 4, 8);
+  ctx.fillRect(-9 + legOffset, 6, 4, 8);
+  ctx.fillRect(5 - legOffset, 6, 4, 8);
   if (s.attackFlash > 0) {
     ctx.fillStyle = `rgba(255,120,30,${s.attackFlash})`;
     ctx.beginPath();
-    ctx.arc(22, -4, 10 * s.attackFlash, 0, Math.PI * 2);
+    ctx.arc(24, -2, 10 * s.attackFlash, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -279,9 +307,10 @@ function drawAnglerfish(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: Dra
 }
 
 function drawRam(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
-  ctx.fillStyle = bodyRadial(ctx, 0, 2, 15, v.body);
+  // low, stout, barrel-shaped body — short and wide, the opposite of the wolf
+  ctx.fillStyle = bodyRadial(ctx, 0, 3, 14, v.body);
   ctx.beginPath();
-  ctx.ellipse(0, 2, 15, 11, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 3, 13, 11, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx);
   // wool texture (rows of small arcs)
@@ -290,32 +319,47 @@ function drawRam(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState)
   for (let row = -1; row <= 1; row++) {
     for (let col = -2; col <= 1; col++) {
       ctx.beginPath();
-      ctx.arc(col * 6 + 2, row * 6 + 2, 3, Math.PI, Math.PI * 2);
+      ctx.arc(col * 5.5 + 2, row * 6 + 3, 3, Math.PI, Math.PI * 2);
       ctx.stroke();
     }
   }
 
-  ctx.fillStyle = bodyRadial(ctx, 13, -6, 8, v.body);
+  ctx.fillStyle = bodyRadial(ctx, 12, -4, 7, v.body);
   ctx.beginPath();
-  ctx.ellipse(13, -6, 8, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(12, -4, 7, 6, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx, 1.3);
-  // horns
-  ctx.strokeStyle = v.accent;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(10, -9, 7, Math.PI * 0.9, Math.PI * 1.9);
-  ctx.stroke();
-  ctx.strokeStyle = darken(v.accent, 0.3);
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.arc(10, -9, 5, Math.PI * 0.9, Math.PI * 1.9);
-  ctx.stroke();
-  eyeDot(ctx, 18, -7, v.eye);
-  const legOffset = Math.sin(s.walkPhase * Math.PI * 2) * 4;
+
+  // big double-curled horns — the ram's unmistakable silhouette feature
+  for (const dir of [-1, 1] as const) {
+    const hy = -4 + dir * 5;
+    ctx.strokeStyle = v.accent;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(6, hy, 9, Math.PI * 0.05, Math.PI * 1.6, dir < 0);
+    ctx.stroke();
+    ctx.strokeStyle = darken(v.accent, 0.35);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(6, hy, 9, Math.PI * 0.05, Math.PI * 1.6, dir < 0);
+    ctx.stroke();
+    // ridge grooves along the horn for texture
+    ctx.strokeStyle = darken(v.accent, 0.2);
+    ctx.lineWidth = 1;
+    for (let g = 0; g < 3; g++) {
+      const ga = Math.PI * (0.15 + g * 0.35);
+      ctx.beginPath();
+      ctx.moveTo(6 + Math.cos(ga) * 6, hy + Math.sin(ga) * dir * -6);
+      ctx.lineTo(6 + Math.cos(ga) * 11, hy + Math.sin(ga) * dir * -11);
+      ctx.stroke();
+    }
+  }
+  eyeDot(ctx, 16, -4, v.eye);
+  const legOffset = Math.sin(s.walkPhase * Math.PI * 2) * 3;
   ctx.fillStyle = darken(v.accent, 0.1);
-  ctx.fillRect(-9 + legOffset, 8, 5, 7);
-  ctx.fillRect(5 - legOffset, 8, 5, 7);
+  ctx.fillRect(-9 + legOffset, 10, 5, 6);
+  ctx.fillRect(5 - legOffset, 10, 5, 6);
   if (s.attackFlash > 0) {
     ctx.strokeStyle = `rgba(200,180,150,${s.attackFlash})`;
     ctx.lineWidth = 3;
@@ -388,16 +432,33 @@ function drawGoblin(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawSta
   ctx.lineTo(6, 8);
   ctx.stroke();
 
+  // big bat-like ear jutting out to the side — the goblin's signature feature
+  ctx.fillStyle = bodyRadial(ctx, -6, -14, 8, v.accent);
+  ctx.beginPath();
+  ctx.moveTo(-1, -14);
+  ctx.quadraticCurveTo(-14, -20, -13, -8);
+  ctx.quadraticCurveTo(-9, -10, -2, -8);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1.1);
+  ctx.strokeStyle = darken(v.accent, 0.3);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-2, -12);
+  ctx.lineTo(-9, -12);
+  ctx.stroke();
+
   ctx.fillStyle = bodyRadial(ctx, 2, -12, 8, v.body);
   ctx.beginPath();
   ctx.ellipse(2, -12, 8, 8, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx, 1.3);
+  // small horn nub instead of a top ear, so the silhouette reads goblin, not wolf
   ctx.fillStyle = v.accent;
   ctx.beginPath();
-  ctx.moveTo(6, -18);
-  ctx.lineTo(14, -22);
-  ctx.lineTo(8, -13);
+  ctx.moveTo(4, -19);
+  ctx.lineTo(8, -24);
+  ctx.lineTo(9, -18);
   ctx.fill();
   outline(ctx, 1);
   eyeDot(ctx, 6, -13, v.eye);
