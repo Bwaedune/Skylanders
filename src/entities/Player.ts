@@ -17,8 +17,8 @@ export class Player extends Entity {
   secondaryCooldown = 0;
   secondaryMax = 4.5;
   glideTimer = 0;
-  xp = 0;
   level = 1;
+  attackDamageBonus = 0;
 
   constructor(x: number, y: number, def: CharacterDef) {
     super(x, y, 34, 34);
@@ -29,6 +29,20 @@ export class Player extends Entity {
 
   get isGiant(): boolean {
     return this.def.isGiant;
+  }
+
+  get attackDamage(): number {
+    return this.def.attackDamage + this.attackDamageBonus;
+  }
+
+  /** Applies persisted per-hero level bonuses: more max health and attack
+   * damage the more this specific hero has been used and leveled up. */
+  applyLevel(level: number): void {
+    this.level = level;
+    const growth = 1 + (level - 1) * 0.15;
+    this.maxHealth = Math.round(this.def.health * growth);
+    this.health = this.maxHealth;
+    this.attackDamageBonus = Math.round((level - 1) * this.def.attackDamage * 0.12);
   }
 
   canAttack(): boolean {

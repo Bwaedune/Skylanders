@@ -1,3 +1,5 @@
+import { audio } from '../engine/Audio';
+
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   attrs: Record<string, string> = {},
@@ -17,6 +19,10 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 
 export function button(label: string, onClick: () => void, cls = 'btn'): HTMLButtonElement {
   const b = el('button', { class: cls }, [label]);
-  b.addEventListener('click', onClick);
+  b.addEventListener('click', () => {
+    audio.unlock();
+    audio.sfxClick();
+    onClick();
+  });
   return b;
 }

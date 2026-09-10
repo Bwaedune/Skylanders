@@ -2,11 +2,13 @@ import type { Game, Screen } from '../engine/Game';
 import { el, button } from './dom';
 import { LEVELS } from '../data/levels/index';
 import { getCharacter } from '../data/characters';
+import { audio } from '../engine/Audio';
 
 export class HubScreen implements Screen {
   private root!: HTMLElement;
 
   mount(game: Game): void {
+    audio.startMusic('hub');
     const save = game.save.get();
     const hero = getCharacter(save.selectedCharacter);
 

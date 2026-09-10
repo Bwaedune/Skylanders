@@ -32,6 +32,7 @@ export interface LevelDef {
   id: string;
   name: string;
   subtitle: string;
+  musicKey: string;
   biome: BiomePalette;
   map: string[];
   playerStart: { gx: number; gy: number };

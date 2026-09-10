@@ -1,10 +1,12 @@
 import type { Game, Screen } from '../engine/Game';
 import { el, button } from './dom';
+import { audio } from '../engine/Audio';
 
 export class MainMenuScreen implements Screen {
   private root!: HTMLElement;
 
   mount(game: Game): void {
+    audio.startMusic('hub');
     const hasSave = game.save.get().glimmer > 0 || Object.keys(game.save.get().levels).length > 0;
 
     this.root = el('div', { class: 'screen center-col' }, [
@@ -22,6 +24,7 @@ export class MainMenuScreen implements Screen {
             game.goTo({ name: 'menu' });
           }
         }, 'btn secondary'),
+        button('Settings', () => game.goTo({ name: 'settings' }), 'btn secondary'),
       ]),
       el('p', { class: 'small-hint' }, ['WASD/Arrows to move · Space to attack · Shift for hero power']),
     ]);

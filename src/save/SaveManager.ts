@@ -6,6 +6,11 @@ export interface LevelProgress {
   totalCollectibles: number;
 }
 
+export interface HeroProgress {
+  level: number;
+  xp: number;
+}
+
 export interface SaveData {
   version: number;
   glimmer: number;
@@ -14,6 +19,10 @@ export interface SaveData {
   selectedCharacter: string;
   levels: Record<string, LevelProgress>;
   storyFlags: Record<string, boolean>;
+  heroProgress: Record<string, HeroProgress>;
+  musicVolume: number;
+  sfxVolume: number;
+  muted: boolean;
 }
 
 const KEY = 'aetherfall-save-v1';
@@ -31,7 +40,18 @@ function defaultSave(): SaveData {
     selectedCharacter: starterUnlocks()[0],
     levels: {},
     storyFlags: {},
+    heroProgress: {},
+    musicVolume: 0.45,
+    sfxVolume: 0.8,
+    muted: false,
   };
+}
+
+const MAX_HERO_LEVEL = 5;
+const XP_PER_LEVEL = 120;
+
+export function xpToNextLevel(level: number): number {
+  return XP_PER_LEVEL * level;
 }
 
 export class SaveManager {
@@ -120,8 +140,46 @@ export class SaveManager {
     return !!this.data.storyFlags[flag];
   }
 
+  getHeroProgress(id: string): HeroProgress {
+    return this.data.heroProgress[id] ?? { level: 1, xp: 0 };
+  }
+
+  /** Adds XP to a hero, applying as many level-ups as it covers (capped).
+   * Returns the number of levels gained (0 if none, or already max level). */
+  addHeroXp(id: string, amount: number): number {
+    const progress = { ...this.getHeroProgress(id) };
+    let levelsGained = 0;
+    progress.xp += amount;
+    while (progress.level < MAX_HERO_LEVEL && progress.xp >= xpToNextLevel(progress.level)) {
+      progress.xp -= xpToNextLevel(progress.level);
+      progress.level += 1;
+      levelsGained += 1;
+    }
+    if (progress.level >= MAX_HERO_LEVEL) progress.xp = 0;
+    this.data.heroProgress[id] = progress;
+    this.persist();
+    return levelsGained;
+  }
+
+  setMusicVolume(v: number): void {
+    this.data.musicVolume = v;
+    this.persist();
+  }
+
+  setSfxVolume(v: number): void {
+    this.data.sfxVolume = v;
+    this.persist();
+  }
+
+  setMuted(m: boolean): void {
+    this.data.muted = m;
+    this.persist();
+  }
+
   resetAll(): void {
     this.data = defaultSave();
     this.persist();
   }
 }
+
+export { MAX_HERO_LEVEL };

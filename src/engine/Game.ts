@@ -8,7 +8,8 @@ export type GameState =
   | { name: 'vault' }
   | { name: 'characterSelect'; returnTo: 'hub' }
   | { name: 'dialogue'; lines: DialogueLine[]; onDone: () => void }
-  | { name: 'level'; levelId: string };
+  | { name: 'level'; levelId: string }
+  | { name: 'settings' };
 
 export interface Screen {
   mount(game: Game): void;

@@ -3,6 +3,7 @@ import { Level } from '../world/Level';
 import { getLevel } from '../data/levels/index';
 import { getCharacter } from '../data/characters';
 import { el, button } from './dom';
+import { buildAudioSettings } from './SettingsControls';
 
 export class LevelScreen implements Screen {
   private level!: Level;
@@ -10,6 +11,8 @@ export class LevelScreen implements Screen {
   private hudRoot!: HTMLElement;
   private healthInner!: HTMLElement;
   private healthText!: HTMLElement;
+  private xpInner!: HTMLElement;
+  private levelText!: HTMLElement;
   private glimmerText!: HTMLElement;
   private shardText!: HTMLElement;
   private bossPanel!: HTMLElement;
@@ -48,6 +51,8 @@ export class LevelScreen implements Screen {
 
     this.healthInner = el('div', { class: 'healthbar-inner' }, []);
     this.healthText = el('div', { style: 'font-size:11px;font-weight:800;margin-top:2px' }, []);
+    this.xpInner = el('div', { class: 'healthbar-inner', style: 'background:linear-gradient(180deg,#e0c8ff,#9b6bd6)' }, []);
+    this.levelText = el('div', { style: 'font-size:10px;font-weight:800;color:#c9a8ff' }, []);
     this.glimmerText = el('span', {}, []);
     this.shardText = el('span', {}, []);
     this.bossName = el('div', { style: 'font-size:12px;font-weight:800;margin-bottom:4px' }, []);
@@ -66,6 +71,8 @@ export class LevelScreen implements Screen {
           el('div', { style: 'font-size:11px;font-weight:800;color:#8fe3d0' }, [`${subtitle} · ${name}`]),
           el('div', { class: 'healthbar-outer' }, [this.healthInner]),
           this.healthText,
+          el('div', { class: 'healthbar-outer', style: 'height:6px;margin-top:2px' }, [this.xpInner]),
+          this.levelText,
         ]),
         el('div', { style: 'display:flex;gap:10px;align-items:flex-start' }, [
           el('div', { class: 'hud-panel currency-pill' }, [this.glimmerText, this.shardText]),
@@ -83,22 +90,33 @@ export class LevelScreen implements Screen {
   private togglePause(): void {
     this.paused = !this.paused;
     if (this.paused) {
-      this.showOverlay('Paused', [
-        { label: 'Resume', action: () => this.togglePause() },
-        { label: 'Quit to Bastion', action: () => this.game.goTo({ name: 'hub' }), cls: 'btn secondary' },
-      ]);
+      this.showOverlay(
+        'Paused',
+        [
+          { label: 'Resume', action: () => this.togglePause() },
+          { label: 'Quit to Bastion', action: () => this.game.goTo({ name: 'hub' }), cls: 'btn secondary' },
+        ],
+        undefined,
+        [buildAudioSettings(this.game.save)],
+      );
     } else {
       this.overlay?.remove();
       this.overlay = null;
     }
   }
 
-  private showOverlay(title: string, actions: { label: string; action: () => void; cls?: string }[], body?: string): void {
+  private showOverlay(
+    title: string,
+    actions: { label: string; action: () => void; cls?: string }[],
+    body?: string,
+    extra?: HTMLElement[],
+  ): void {
     this.overlay?.remove();
     this.overlay = el('div', { class: 'overlay' }, [
       el('div', { class: 'panel' }, [
         el('h2', { class: 'title', style: 'margin:0;color:#f6d132' }, [title]),
         ...(body ? [el('p', { class: 'small-hint' }, [body])] : []),
+        ...(extra ?? []),
         el(
           'div',
           { class: 'row' },
@@ -131,6 +149,8 @@ export class LevelScreen implements Screen {
     const pct = Math.max(0, hud.health / hud.maxHealth);
     this.healthInner.style.width = `${pct * 100}%`;
     this.healthText.textContent = `${Math.ceil(hud.health)} / ${hud.maxHealth} HP`;
+    this.xpInner.style.width = `${hud.xpPct * 100}%`;
+    this.levelText.textContent = `Lv.${hud.heroLevel}`;
     this.glimmerText.textContent = `✦ ${hud.glimmer}`;
     this.shardText.textContent = `◆ ${hud.shards}`;
     this.hintEl.textContent = `💡 ${hud.hint}`;

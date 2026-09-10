@@ -27,6 +27,7 @@ export const gustpeakSpire: LevelDef = {
   id: 'gustpeak-spire',
   name: 'Gustpeak Spire',
   subtitle: 'Isle III — Gale',
+  musicKey: 'gale',
   biome: {
     floor: '#26323a',
     floorAlt: '#2c3a43',

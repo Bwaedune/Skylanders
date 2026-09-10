@@ -37,6 +37,7 @@ export const emberfallFoothills: LevelDef = {
   id: 'emberfall-foothills',
   name: 'Emberfall Foothills',
   subtitle: 'Isle I — Ember',
+  musicKey: 'ember',
   biome: {
     floor: '#332a2c',
     floorAlt: '#3a2f2e',

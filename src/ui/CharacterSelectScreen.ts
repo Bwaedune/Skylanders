@@ -2,6 +2,7 @@ import type { Game, Screen } from '../engine/Game';
 import { el, button } from './dom';
 import { CHARACTERS, type CharacterDef } from '../data/characters';
 import { ELEMENTS } from '../data/elements';
+import { audio } from '../engine/Audio';
 
 export class CharacterSelectScreen implements Screen {
   private root!: HTMLElement;
@@ -15,6 +16,7 @@ export class CharacterSelectScreen implements Screen {
 
   mount(game: Game): void {
     this.game = game;
+    audio.startMusic('hub');
     this.render();
   }
 

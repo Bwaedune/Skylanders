@@ -10,8 +10,9 @@ import type { CharacterDef } from '../data/characters';
 import { Vec2, rectsOverlap, dist } from '../engine/Vec';
 import { Camera } from '../engine/Camera';
 import { Input } from '../engine/Input';
-import { SaveManager } from '../save/SaveManager';
+import { SaveManager, xpToNextLevel, MAX_HERO_LEVEL } from '../save/SaveManager';
 import { Ambience } from './Ambience';
+import { audio } from '../engine/Audio';
 
 export type LevelStatus = 'playing' | 'won' | 'lost';
 
@@ -28,6 +29,25 @@ interface Effect {
   maxLife: number;
 }
 
+interface Particle {
+  pos: Vec2;
+  vel: Vec2;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+}
+
+interface DamageNumber {
+  pos: Vec2;
+  text: string;
+  color: string;
+  life: number;
+  maxLife: number;
+  vy: number;
+  big: boolean;
+}
+
 export interface HUD {
   health: number;
   maxHealth: number;
@@ -39,6 +59,8 @@ export interface HUD {
   bossMaxHealth: number;
   hint: string;
   message: string | null;
+  heroLevel: number;
+  xpPct: number;
 }
 
 const KEYS = {
@@ -69,6 +91,10 @@ export class Level {
   message: string | null = null;
   private messageTimer = 0;
   private effects: Effect[] = [];
+  private particles: Particle[] = [];
+  private damageNumbers: DamageNumber[] = [];
+  private hitStopTimer = 0;
+  private shakeTrauma = 0;
   private save: SaveManager;
   private turret: { pos: Vec2; timer: number; tickTimer: number } | null = null;
   private ambience: Ambience;
@@ -86,6 +112,8 @@ export class Level {
       def.playerStart.gy * TILE_SIZE + TILE_SIZE / 2,
       character,
     );
+    this.player.applyLevel(save.getHeroProgress(character.id).level);
+    audio.startMusic(def.musicKey);
 
     for (const s of def.switches) this.switches.push(new Switch(s.gx, s.gy, s.requiresGiant));
     for (const g of def.gates) this.gates.push(new Gate(g.gx, g.gy));
@@ -124,6 +152,13 @@ export class Level {
 
   update(dt: number, input: Input): void {
     if (this.status !== 'playing') return;
+
+    if (this.hitStopTimer > 0) {
+      this.hitStopTimer -= dt;
+      dt *= 0.08;
+    }
+    this.shakeTrauma = Math.max(0, this.shakeTrauma - dt * 2.5);
+
     this.time += dt;
     this.player.tickTimers(dt);
     if (this.messageTimer > 0) {
@@ -140,11 +175,20 @@ export class Level {
     this.updateEnemies(dt);
     this.updateTurret(dt);
     this.updateEffects(dt);
+    this.updateParticles(dt);
+    this.updateDamageNumbers(dt);
     this.ambience.update(dt);
     this.checkExit();
 
-    if (this.player.health <= 0) {
+    if (this.boss && this.boss.alive) {
+      const engaged = dist(this.player.pos.x, this.player.pos.y, this.boss.pos.x, this.boss.pos.y) <= this.boss.def.aggroRange;
+      if (engaged) audio.startBossMusic();
+    }
+
+    if (this.player.health <= 0 && this.status === 'playing') {
       this.status = 'lost';
+      audio.sfxDefeat();
+      audio.stopMusic(1.0);
     }
   }
 
@@ -205,18 +249,110 @@ export class Level {
   private performPrimaryAttack(): void {
     const p = this.player;
     if (p.def.attackType === 'melee') {
+      audio.sfxSwingMelee();
       const hb = p.attackHitbox();
       for (const e of this.allEnemies()) {
         if (rectsOverlap(hb, e.bounds())) {
-          e.takeDamage(p.def.attackDamage);
+          this.applyDamageToEnemy(e, p.attackDamage);
         }
       }
     } else {
+      audio.sfxSwingRanged();
       const dir = new Vec2(p.facing, 0);
       this.projectiles.push(
-        new Projectile(p.pos.x + p.facing * 20, p.pos.y, dir, 360, p.def.attackDamage, p.def.accent, true),
+        new Projectile(p.pos.x + p.facing * 20, p.pos.y, dir, 360, p.attackDamage, p.def.accent, true),
       );
     }
+  }
+
+  /** Central hit-resolution for enemy damage: applies the sfx/hit-stop/
+   * screen-shake/particle/XP feedback so every damage source (melee,
+   * projectiles, abilities, the turret) reads and sounds the same. */
+  private applyDamageToEnemy(e: Enemy, amount: number): void {
+    const wasAlive = e.alive;
+    e.takeDamage(amount);
+    this.spawnDamageNumber(e.pos, Math.round(amount), '#fff2c2', e.def.isBoss ?? false);
+    this.triggerHitStop(e.def.isBoss ? 0.03 : 0.05);
+    this.triggerShake(e.def.isBoss ? 0.1 : 0.15);
+    audio.sfxHitEnemy();
+    if (wasAlive && !e.alive) {
+      this.onEnemyDefeated(e);
+    }
+  }
+
+  private onEnemyDefeated(e: Enemy): void {
+    if (e.def.isBoss) {
+      this.spawnBurst(e.pos, e.def.accent, 28, 150);
+      audio.sfxDeathBoss();
+      this.triggerShake(0.65);
+      this.triggerHitStop(0.18);
+    } else {
+      this.spawnBurst(e.pos, e.def.accent, 12, 90);
+      audio.sfxDeathEnemy();
+    }
+    this.grantXp(e.def.isBoss ? e.def.glimmerDrop : e.def.glimmerDrop * 2);
+  }
+
+  private grantXp(amount: number): void {
+    const levelsGained = this.save.addHeroXp(this.player.def.id, amount);
+    if (levelsGained > 0) {
+      const newLevel = this.save.getHeroProgress(this.player.def.id).level;
+      this.player.applyLevel(newLevel);
+      this.spawnBurst(this.player.pos, '#ffe27a', 20, 110);
+      audio.sfxLevelUp();
+      this.showMessage(
+        newLevel >= MAX_HERO_LEVEL ? `${this.player.def.name} reached max level!` : `${this.player.def.name} leveled up! Lv.${newLevel}`,
+        2.6,
+      );
+    }
+  }
+
+  /** Damage dealt to the player, with feedback — only fires when the hit
+   * actually lands (not while invulnerable from a previous hit). */
+  private hurtPlayer(amount: number): void {
+    const before = this.player.health;
+    this.player.takeDamage(amount);
+    if (this.player.health < before) {
+      audio.sfxHitPlayer();
+      this.triggerShake(0.3);
+      this.triggerHitStop(0.06);
+      this.spawnDamageNumber(this.player.pos, Math.round(before - this.player.health), '#ff8a80', false);
+    }
+  }
+
+  private triggerHitStop(seconds: number): void {
+    this.hitStopTimer = Math.max(this.hitStopTimer, seconds);
+  }
+
+  private triggerShake(amount: number): void {
+    this.shakeTrauma = Math.min(1, this.shakeTrauma + amount);
+  }
+
+  private spawnBurst(pos: Vec2, color: string, count: number, speed: number): void {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = speed * (0.4 + Math.random() * 0.6);
+      this.particles.push({
+        pos: pos.clone(),
+        vel: new Vec2(Math.cos(a) * spd, Math.sin(a) * spd),
+        life: 0.4 + Math.random() * 0.3,
+        maxLife: 0.7,
+        color,
+        size: 1.5 + Math.random() * 2.5,
+      });
+    }
+  }
+
+  private spawnDamageNumber(pos: Vec2, amount: number, color: string, big: boolean): void {
+    this.damageNumbers.push({
+      pos: new Vec2(pos.x + (Math.random() - 0.5) * 12, pos.y - 14),
+      text: `-${amount}`,
+      color,
+      life: 0.7,
+      maxLife: 0.7,
+      vy: -42,
+      big,
+    });
   }
 
   private showMessage(text: string, duration = 2.2): void {
@@ -232,11 +368,12 @@ export class Level {
     const p = this.player;
     const front = new Vec2(p.pos.x + p.facing * 60, p.pos.y);
     this.spawnEffect(p.def.isGiant ? p.pos : front, p.def.accent, p.def.isGiant ? 130 : 90);
+    audio.sfxAbility();
 
     switch (p.def.id) {
       case 'cinderjaw': {
         for (const e of this.allEnemies()) {
-          if (dist(e.pos.x, e.pos.y, front.x, front.y) < 90) e.takeDamage(24);
+          if (dist(e.pos.x, e.pos.y, front.x, front.y) < 90) this.applyDamageToEnemy(e, 24);
         }
         break;
       }
@@ -259,7 +396,7 @@ export class Level {
         for (const e of this.allEnemies()) {
           const d = dist(e.pos.x, e.pos.y, p.pos.x, p.pos.y);
           if (d < 110) {
-            e.takeDamage(16);
+            this.applyDamageToEnemy(e, 16);
             const push = new Vec2(e.pos.x - p.pos.x, e.pos.y - p.pos.y).normalized().scale(40);
             e.pos.x += push.x;
             e.pos.y += push.y;
@@ -277,7 +414,7 @@ export class Level {
           }
         }
         for (const e of this.allEnemies()) {
-          if (dist(e.pos.x, e.pos.y, p.pos.x, p.pos.y) < 70) e.takeDamage(30);
+          if (dist(e.pos.x, e.pos.y, p.pos.x, p.pos.y) < 70) this.applyDamageToEnemy(e, 30);
         }
         break;
       }
@@ -305,13 +442,14 @@ export class Level {
       case 'magmatitan': {
         for (const e of this.allEnemies()) {
           if (dist(e.pos.x, e.pos.y, p.pos.x, p.pos.y) < 130) {
-            e.takeDamage(20);
+            this.applyDamageToEnemy(e, 20);
             e.attackTimer = Math.max(e.attackTimer, 1.2);
           }
         }
         for (const b of this.barriers) {
           if (!b.cleared && b.requiresGiant && dist(b.pos.x, b.pos.y, p.pos.x, p.pos.y) < 130) {
             b.cleared = true;
+            audio.sfxBarrierClear();
             this.showMessage('The rockfall seal shatters!');
           }
         }
@@ -337,6 +475,7 @@ export class Level {
         const def = this.def.switches[idx];
         for (const gi of def.opensGates) this.gates[gi].open = true;
         for (const bi of def.opensBarriers ?? []) this.barriers[bi].cleared = true;
+        audio.sfxGateOpen();
         this.showMessage('A mechanism grinds open somewhere nearby...');
       }
     }
@@ -347,6 +486,7 @@ export class Level {
       const near = dist(b.pos.x, b.pos.y, this.player.pos.x, this.player.pos.y) < TILE_SIZE * 0.8;
       if (near && b.canClear(this.player.def.element, this.player.isGiant)) {
         b.cleared = true;
+        audio.sfxBarrierClear();
         this.showMessage(b.requiresGiant ? 'A Giant clears the rockfall seal!' : 'The barrier gives way!');
       }
     }
@@ -371,6 +511,9 @@ export class Level {
         this.collectedGlimmer += c.glimmer;
         this.collectedShards += c.shards ?? 0;
         this.save.addCurrency(c.glimmer, c.shards ?? 0);
+        this.spawnBurst(c.pos, c.shards ? '#c76bf0' : '#f6d132', 14, 80);
+        if (c.shards) audio.sfxPickupShard();
+        else audio.sfxPickupGlimmer();
         this.showMessage(
           c.shards ? `Found a Hero Crystal! +${c.shards} shards` : `Found treasure! +${c.glimmer} glimmer`,
         );
@@ -394,12 +537,12 @@ export class Level {
       if (proj.fromPlayer) {
         for (const e of this.allEnemies()) {
           if (e.alive && rectsOverlap(proj.bounds(), e.bounds())) {
-            e.takeDamage(proj.damage);
+            this.applyDamageToEnemy(e, proj.damage);
             proj.alive = false;
           }
         }
       } else if (rectsOverlap(proj.bounds(), this.player.bounds())) {
-        this.player.takeDamage(proj.damage);
+        this.hurtPlayer(proj.damage);
         proj.alive = false;
       }
     }
@@ -417,17 +560,16 @@ export class Level {
 
     for (const e of this.enemies) {
       if (!e.alive) continue;
-      e.update(dt, this.player.pos, tryMove(e), spawnProjectile, (dmg) => this.player.takeDamage(dmg));
+      e.update(dt, this.player.pos, tryMove(e), spawnProjectile, (dmg) => this.hurtPlayer(dmg));
     }
     const wasBossAlive = this.boss?.alive;
     if (this.boss && this.boss.alive) {
-      this.boss.update(dt, this.player.pos, tryMove(this.boss), spawnProjectile, (dmg) =>
-        this.player.takeDamage(dmg),
-      );
+      this.boss.update(dt, this.player.pos, tryMove(this.boss), spawnProjectile, (dmg) => this.hurtPlayer(dmg));
     }
     if (wasBossAlive && this.boss && !this.boss.alive) {
       this.save.addCurrency(this.boss.def.glimmerDrop, 0);
       this.exitPortal.active = true;
+      audio.startMusic(this.def.musicKey);
       this.showMessage(`${this.def.boss?.name ?? 'The boss'} is defeated! The way is open.`);
     }
 
@@ -461,7 +603,7 @@ export class Level {
         }
       }
       if (nearest) {
-        nearest.takeDamage(8);
+        this.applyDamageToEnemy(nearest, 8);
         this.spawnEffect(nearest.pos, '#f6d132', 24);
       }
     }
@@ -475,13 +617,38 @@ export class Level {
     this.effects = this.effects.filter((fx) => fx.life > 0);
   }
 
+  private updateParticles(dt: number): void {
+    for (const p of this.particles) {
+      p.pos.x += p.vel.x * dt;
+      p.pos.y += p.vel.y * dt;
+      p.vel = p.vel.scale(0.9);
+      p.life -= dt;
+    }
+    this.particles = this.particles.filter((p) => p.life > 0);
+  }
+
+  private updateDamageNumbers(dt: number): void {
+    for (const d of this.damageNumbers) {
+      d.pos.y += d.vy * dt;
+      d.vy += 70 * dt;
+      d.life -= dt;
+    }
+    this.damageNumbers = this.damageNumbers.filter((d) => d.life > 0);
+  }
+
   private checkExit(): void {
-    if (this.exitPortal.active && dist(this.player.pos.x, this.player.pos.y, this.exitPortal.pos.x, this.exitPortal.pos.y) < TILE_SIZE * 0.6) {
+    if (
+      this.exitPortal.active &&
+      dist(this.player.pos.x, this.player.pos.y, this.exitPortal.pos.x, this.exitPortal.pos.y) < TILE_SIZE * 0.6
+    ) {
       this.status = 'won';
+      audio.sfxVictory();
+      audio.stopMusic(1.2);
     }
   }
 
   getHUD(): HUD {
+    const progress = this.save.getHeroProgress(this.player.def.id);
     return {
       health: this.player.health,
       maxHealth: this.player.maxHealth,
@@ -493,6 +660,8 @@ export class Level {
       bossMaxHealth: this.boss?.def.health ?? 0,
       hint: this.def.hint,
       message: this.message,
+      heroLevel: progress.level,
+      xpPct: progress.level >= MAX_HERO_LEVEL ? 1 : progress.xp / xpToNextLevel(progress.level),
     };
   }
 
@@ -509,6 +678,11 @@ export class Level {
     ctx.scale(1, CAMERA_TILT);
     ctx.translate(-viewW / 2, -viewH / 2);
     this.camera.apply(ctx);
+
+    if (this.shakeTrauma > 0) {
+      const mag = this.shakeTrauma * this.shakeTrauma * 10;
+      ctx.translate((Math.random() * 2 - 1) * mag, (Math.random() * 2 - 1) * mag);
+    }
 
     this.map.render(ctx, this.def.biome, this.time);
 
@@ -546,7 +720,27 @@ export class Level {
       ctx.globalAlpha = 1;
     }
 
+    for (const p of this.particles) {
+      ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.pos.x, p.pos.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     this.ambience.render(ctx);
+
+    for (const d of this.damageNumbers) {
+      ctx.globalAlpha = Math.max(0, d.life / d.maxLife);
+      ctx.font = d.big ? 'bold 15px sans-serif' : 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillText(d.text, d.pos.x + 1, d.pos.y + 1);
+      ctx.fillStyle = d.color;
+      ctx.fillText(d.text, d.pos.x, d.pos.y);
+      ctx.globalAlpha = 1;
+    }
 
     ctx.restore();
 

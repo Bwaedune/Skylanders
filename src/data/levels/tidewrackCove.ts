@@ -30,6 +30,7 @@ export const tidewrackCove: LevelDef = {
   id: 'tidewrack-cove',
   name: 'Tidewrack Cove',
   subtitle: 'Isle II — Tide',
+  musicKey: 'tide',
   biome: {
     floor: '#1c3a44',
     floorAlt: '#20404b',
