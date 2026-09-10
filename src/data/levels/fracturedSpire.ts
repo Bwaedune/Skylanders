@@ -53,9 +53,9 @@ export const fracturedSpire: LevelDef = {
   map: buildMap(),
   playerStart: { gx: 4, gy: 4 },
   switches: [
-    { gx: 7, gy: 9, opensGates: [0] },
-    { gx: 16, gy: 9, opensGates: [1] },
-    { gx: 25, gy: 9, opensGates: [2] },
+    { gx: 7, gy: 9, opensGates: [0, 1, 2] },
+    { gx: 16, gy: 9, opensGates: [0, 1, 2] },
+    { gx: 25, gy: 9, opensGates: [0, 1, 2] },
   ],
   gates: [
     { gx: 10, gy: 16 },
@@ -83,7 +83,7 @@ export const fracturedSpire: LevelDef = {
   ],
   boss: { gx: 16, gy: 18, type: 'fractured-king', name: 'The Fractured King' },
   exit: { gx: 28, gy: 19 },
-  hint: 'Three plates, three wings — clear each to open its gate segment. Old tricks still work: a Giant, an Arcane hero, and a Gale hero all have work to do here.',
+  hint: 'Three plates, three wings — every gate stays sealed until all three are cleared. Old tricks still work: a Giant, an Arcane hero, and a Gale hero all have work to do here.',
   introDialogue: [
     {
       speaker: 'Elder Thistlewick',

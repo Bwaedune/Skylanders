@@ -23,6 +23,12 @@ function buildMap(): string[] {
   fillRect(grid, 2, 10, 3, 12, '.');
   setTile(grid, 4, 11, '.');
 
+  // Sealed pocket (east) behind a wind-gate that only holds a few seconds —
+  // a timed dash instead of another element/giant check.
+  fillRect(grid, 24, 10, 28, 13, '#');
+  fillRect(grid, 25, 11, 27, 12, '.');
+  setTile(grid, 24, 11, '.');
+
   return toRows(grid);
 }
 
@@ -42,10 +48,14 @@ export const gustpeakSpire: LevelDef = {
   },
   map: buildMap(),
   playerStart: { gx: 4, gy: 4 },
-  switches: [{ gx: 14, gy: 10, opensGates: [0, 1] }],
+  switches: [
+    { gx: 14, gy: 10, opensGates: [0, 1] },
+    { gx: 20, gy: 11, opensGates: [2], timedSeconds: 4 },
+  ],
   gates: [
     { gx: 14, gy: 14 },
     { gx: 15, gy: 14 },
+    { gx: 24, gy: 11 },
   ],
   pushBlocks: [{ gx: 14, gy: 8 }],
   barriers: [{ gx: 4, gy: 11, element: null, requiresGiant: true }],
@@ -53,16 +63,18 @@ export const gustpeakSpire: LevelDef = {
     { gx: 6, gy: 10, glimmer: 60 },
     { gx: 14, gy: 1, glimmer: 90 },
     { gx: 2, gy: 11, glimmer: 0, shards: 4 },
+    { gx: 26, gy: 11, glimmer: 100, shards: 3 },
   ],
   enemies: [
     { gx: 8, gy: 8, type: 'gale-sprite' },
     { gx: 22, gy: 5, type: 'gale-sprite' },
     { gx: 22, gy: 10, type: 'gale-sprite' },
     { gx: 24, gy: 8, type: 'stone-sentinel' },
+    { gx: 21, gy: 13, type: 'gale-sprite' },
   ],
   boss: { gx: 15, gy: 16, type: 'stormcaller-roc', name: 'Stormcaller Roc' },
   exit: { gx: 26, gy: 17 },
-  hint: 'Gale heroes can glide clean across the chasm to the high cache. Everyone else: mind the drop.',
+  hint: 'Gale heroes can glide clean across the chasm to the high cache. East of center, a wind-gate only holds a few seconds once triggered — hit the plate and run.',
   introDialogue: [
     {
       speaker: 'Squallwing',

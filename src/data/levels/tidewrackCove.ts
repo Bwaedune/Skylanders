@@ -43,8 +43,8 @@ export const tidewrackCove: LevelDef = {
   map: buildMap(),
   playerStart: { gx: 4, gy: 4 },
   switches: [
-    { gx: 8, gy: 10, opensGates: [0] },
-    { gx: 20, gy: 10, opensGates: [1] },
+    { gx: 8, gy: 10, opensGates: [0, 1] },
+    { gx: 20, gy: 10, opensGates: [0, 1] },
   ],
   gates: [
     { gx: 14, gy: 14 },

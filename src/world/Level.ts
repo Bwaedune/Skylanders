@@ -98,6 +98,7 @@ export class Level {
   private save: SaveManager;
   private turret: { pos: Vec2; timer: number; tickTimer: number } | null = null;
   private ambience: Ambience;
+  private timedRemaining: number[] = [];
   collectedGlimmer = 0;
   collectedShards = 0;
 
@@ -116,6 +117,7 @@ export class Level {
     audio.startMusic(def.musicKey);
 
     for (const s of def.switches) this.switches.push(new Switch(s.gx, s.gy, s.requiresGiant));
+    this.timedRemaining = def.switches.map(() => 0);
     for (const g of def.gates) this.gates.push(new Gate(g.gx, g.gy));
     for (const b of def.pushBlocks) this.pushBlocks.push(new PushBlock(b.gx, b.gy));
     for (const b of def.barriers) this.barriers.push(new Barrier(b.gx, b.gy, b.element, b.requiresGiant));
@@ -168,7 +170,7 @@ export class Level {
 
     this.handleMovement(dt, input);
     this.handleActions(input);
-    this.updateSwitchesAndGates();
+    this.updateSwitchesAndGates(dt);
     this.updateHazards(dt);
     this.updateChests();
     this.updateProjectiles(dt);
@@ -464,22 +466,38 @@ export class Level {
     }
   }
 
-  private updateSwitchesAndGates(): void {
-    for (const sw of this.switches) {
-      const overlapsPlayer = rectsOverlap(this.player.bounds(), sw.bounds());
-      const overlapsBlock = this.pushBlocks.some((b) => rectsOverlap(b.bounds(), sw.bounds()));
-      if (overlapsPlayer || overlapsBlock) {
-        sw.tryPress(this.player.isGiant);
-      }
-      if (sw.wasJustTriggered()) {
-        const idx = this.switches.indexOf(sw);
-        const def = this.def.switches[idx];
-        for (const gi of def.opensGates) this.gates[gi].open = true;
-        for (const bi of def.opensBarriers ?? []) this.barriers[bi].cleared = true;
-        audio.sfxGateOpen();
-        this.showMessage('A mechanism grinds open somewhere nearby...');
+  private updateSwitchesAndGates(dt: number): void {
+    for (let i = 0; i < this.switches.length; i++) {
+      const sw = this.switches[i];
+      const swDef = this.def.switches[i];
+      const occupied =
+        rectsOverlap(this.player.bounds(), sw.bounds()) || this.pushBlocks.some((b) => rectsOverlap(b.bounds(), sw.bounds()));
+
+      if (swDef.timedSeconds !== undefined) {
+        // A timed plate: occupying it (re)starts a countdown: its gates stay
+        // open until the countdown runs out, giving a window to dash through
+        // rather than a permanent one-time solve.
+        if (occupied) {
+          if (this.timedRemaining[i] <= 0) {
+            audio.sfxSwitchPress();
+            this.showMessage(`Go! ${swDef.timedSeconds}s to get through!`, swDef.timedSeconds);
+          }
+          this.timedRemaining[i] = swDef.timedSeconds;
+        } else {
+          this.timedRemaining[i] = Math.max(0, this.timedRemaining[i] - dt);
+        }
+        sw.pressed = this.timedRemaining[i] > 0;
+      } else {
+        if (occupied) sw.tryPress(this.player.isGiant);
+        if (sw.wasJustTriggered()) {
+          audio.sfxSwitchPress();
+          for (const bi of swDef.opensBarriers ?? []) this.barriers[bi].cleared = true;
+          this.showMessage('A mechanism grinds open somewhere nearby...');
+        }
       }
     }
+
+    this.recomputeGates();
 
     // Barriers cleared by walking into them with the matching element/giant.
     for (const b of this.barriers) {
@@ -490,6 +508,22 @@ export class Level {
         audio.sfxBarrierClear();
         this.showMessage(b.requiresGiant ? 'A Giant clears the rockfall seal!' : 'The barrier gives way!');
       }
+    }
+  }
+
+  /** A gate opens only once every switch that lists it is pressed — so a
+   * multi-plate gate genuinely requires solving every plate, not just
+   * whichever one is easiest to reach. */
+  private recomputeGates(): void {
+    for (let gi = 0; gi < this.gates.length; gi++) {
+      const controllingSwitches = this.def.switches
+        .map((swDef, idx) => (swDef.opensGates.includes(gi) ? idx : -1))
+        .filter((idx) => idx >= 0);
+      if (controllingSwitches.length === 0) continue;
+      const wasOpen = this.gates[gi].open;
+      const nowOpen = controllingSwitches.every((idx) => this.switches[idx].pressed);
+      if (nowOpen && !wasOpen) audio.sfxGateOpen();
+      this.gates[gi].open = nowOpen;
     }
   }
 

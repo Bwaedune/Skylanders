@@ -11,8 +11,11 @@ export interface SwitchDef {
   gx: number;
   gy: number;
   requiresGiant?: boolean;
-  opensGates: number[]; // indexes into gates[]
+  opensGates: number[]; // indexes into gates[] — a gate opens only once every switch listing it is pressed
   opensBarriers?: number[]; // indexes into barriers[]
+  /** If set, this plate only holds its gates open for this many seconds
+   * after last being occupied, instead of solving permanently. */
+  timedSeconds?: number;
 }
 
 export interface BarrierDef {

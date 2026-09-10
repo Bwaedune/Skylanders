@@ -107,6 +107,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     kind: 'melee',
     isBoss: true,
     glimmerDrop: 150,
+    enrageBelow: 0.45,
   },
   'kraken-warden': {
     name: 'The Kraken Warden',
@@ -123,6 +124,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     kind: 'ranged',
     isBoss: true,
     glimmerDrop: 180,
+    enrageBelow: 0.45,
   },
   'stormcaller-roc': {
     name: 'Stormcaller Roc',
@@ -139,6 +141,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     kind: 'ranged',
     isBoss: true,
     glimmerDrop: 180,
+    enrageBelow: 0.45,
   },
   'shard-sentinel': {
     name: 'Shard Sentinel',
