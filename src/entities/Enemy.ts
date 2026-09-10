@@ -20,6 +20,10 @@ export interface EnemyDef {
   isBoss?: boolean;
   glimmerDrop: number;
   scale?: number;
+  /** Flat damage reduction applied to every hit (floor of 1 still gets through). */
+  armor?: number;
+  /** Health fraction (0..1) below which this enemy enrages: faster, harder-hitting. */
+  enrageBelow?: number;
 }
 
 export class Enemy extends Entity {
@@ -59,36 +63,50 @@ export class Enemy extends Entity {
     const toPlayer = new Vec2(playerPos.x - this.pos.x, playerPos.y - this.pos.y).normalized();
     this.facing = toPlayer.x >= 0 ? 1 : -1;
 
+    const enraged = this.def.enrageBelow !== undefined && this.health < this.def.health * this.def.enrageBelow;
+    const speed = this.def.speed * (enraged ? 1.35 : 1);
+    const cooldown = this.def.attackCooldown * (enraged ? 0.6 : 1);
+    const damage = this.def.damage * (enraged ? 1.3 : 1);
+
     if (d <= this.def.aggroRange) {
       if (this.def.kind === 'melee') {
         if (d > this.def.attackRange * 0.7) {
-          const move = toPlayer.scale(this.def.speed * dt);
+          const move = toPlayer.scale(speed * dt);
           tryMove(move.x, move.y);
         } else if (this.attackTimer <= 0) {
-          this.attackTimer = this.def.attackCooldown;
+          this.attackTimer = cooldown;
           this.attackFlash = 1;
-          dealMeleeDamage(this.def.damage);
+          dealMeleeDamage(damage);
         }
       } else {
         if (d < this.def.attackRange * 0.6) {
-          const move = toPlayer.scale(-this.def.speed * dt);
+          const move = toPlayer.scale(-speed * dt);
           tryMove(move.x, move.y);
         } else if (d > this.def.attackRange) {
-          const move = toPlayer.scale(this.def.speed * dt);
+          const move = toPlayer.scale(speed * dt);
           tryMove(move.x, move.y);
         }
         if (this.attackTimer <= 0 && d <= this.def.attackRange) {
-          this.attackTimer = this.def.attackCooldown;
+          this.attackTimer = cooldown;
           this.attackFlash = 1;
-          spawnProjectile(
-            new Projectile(this.pos.x, this.pos.y, toPlayer, 220, this.def.damage, this.def.accent, false),
-          );
+          spawnProjectile(new Projectile(this.pos.x, this.pos.y, toPlayer, 220, damage, this.def.accent, false));
         }
       }
     }
   }
 
   render(ctx: CanvasRenderingContext2D): void {
+    const enraged = this.def.enrageBelow !== undefined && this.health < this.def.health * this.def.enrageBelow;
+    if (enraged) {
+      ctx.save();
+      ctx.globalAlpha = 0.25 + Math.sin(this.walkPhase * Math.PI * 10) * 0.15;
+      ctx.strokeStyle = '#ff4d4d';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(this.pos.x, this.pos.y, this.width * 0.75, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     drawCreature(
       ctx,
       this.pos.x,

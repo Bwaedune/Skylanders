@@ -15,7 +15,8 @@ export type CreatureShape =
   | 'giant-magma'
   | 'slime-boss'
   | 'roc-boss'
-  | 'kraken-boss';
+  | 'kraken-boss'
+  | 'king-boss';
 
 export interface CreatureVisual {
   shape: CreatureShape;
@@ -166,6 +167,9 @@ export function drawCreature(
       break;
     case 'kraken-boss':
       drawKrakenBoss(ctx, visual, state);
+      break;
+    case 'king-boss':
+      drawKingBoss(ctx, visual, state);
       break;
   }
 
@@ -1292,4 +1296,121 @@ function drawKrakenBoss(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: Dra
   ctx.stroke();
   eyeDot(ctx, 7, -10, v.eye, 4);
   eyeDot(ctx, -7, -10, v.eye, 4);
+}
+
+function drawKingBoss(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
+  const sway = Math.sin(s.walkPhase * Math.PI * 2) * 3;
+
+  // a tattered royal cape, split behind the throne-breaker's shoulders
+  ctx.globalAlpha = 0.92;
+  ctx.fillStyle = darken(v.body, 0.15);
+  ctx.beginPath();
+  ctx.moveTo(-9, -15);
+  ctx.lineTo(-25 + sway, 4);
+  ctx.lineTo(-19, 27);
+  ctx.lineTo(-6, 31);
+  ctx.lineTo(1, 10);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1.6);
+  ctx.beginPath();
+  ctx.moveTo(9, -15);
+  ctx.lineTo(25 - sway, 4);
+  ctx.lineTo(19, 27);
+  ctx.lineTo(6, 31);
+  ctx.lineTo(-1, 10);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1.6);
+  ctx.globalAlpha = 1;
+
+  // twin blades flanking the body in a ready stance
+  for (const side of [-1, 1] as const) {
+    ctx.save();
+    ctx.translate(side * 21, -2 + sway * side * 0.3);
+    ctx.rotate(side * 0.16);
+    ctx.fillStyle = bodyRadial(ctx, 0, 0, 5, lighten(v.accent, 0.25));
+    ctx.beginPath();
+    ctx.moveTo(0, -25);
+    ctx.lineTo(4, 0);
+    ctx.lineTo(0, 27);
+    ctx.lineTo(-4, 0);
+    ctx.closePath();
+    ctx.fill();
+    outline(ctx, 1.4);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -24);
+    ctx.lineTo(0, 26);
+    ctx.stroke();
+    ctx.fillStyle = STEEL_DARK;
+    ctx.fillRect(-3, 0, 6, 7);
+    outline(ctx, 1);
+    ctx.restore();
+  }
+
+  // armored torso with a glowing fracture down the chest
+  ctx.fillStyle = bodyRadial(ctx, 0, 2, 18, v.body);
+  ctx.beginPath();
+  ctx.moveTo(-13, -17);
+  ctx.lineTo(13, -17);
+  ctx.lineTo(16, 14);
+  ctx.lineTo(0, 21);
+  ctx.lineTo(-16, 14);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 2);
+  ctx.strokeStyle = v.accent;
+  ctx.shadowColor = v.accent;
+  ctx.shadowBlur = 9;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -15);
+  ctx.lineTo(-3, -1);
+  ctx.lineTo(2, 8);
+  ctx.lineTo(0, 17);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // banded shoulder pauldrons
+  for (const side of [-1, 1] as const) {
+    ctx.fillStyle = bodyRadial(ctx, side * 14, -15, 6, darken(v.body, 0.05));
+    ctx.beginPath();
+    ctx.ellipse(side * 14, -15, 6, 5, side * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    outline(ctx, 1.3);
+    ctx.strokeStyle = STEEL_DARK;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(side * 14, -15, 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // head beneath a jagged crystalline crown
+  ctx.fillStyle = bodyRadial(ctx, 0, -23, 8, v.body);
+  ctx.beginPath();
+  ctx.ellipse(0, -23, 8, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 1.5);
+  ctx.fillStyle = v.accent;
+  for (const cx of [-6, -2, 2, 6]) {
+    ctx.beginPath();
+    ctx.moveTo(cx - 2, -28);
+    ctx.lineTo(cx, -28 - 6 - Math.abs(cx) * 0.5);
+    ctx.lineTo(cx + 2, -28);
+    ctx.closePath();
+    ctx.fill();
+    outline(ctx, 1);
+  }
+  eyeDot(ctx, 4, -23, v.eye, 2.4);
+  eyeDot(ctx, -4, -23, v.eye, 2.4);
+
+  if (s.attackFlash > 0) {
+    ctx.strokeStyle = `rgba(200,120,255,${s.attackFlash})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 20 + 18 * s.attackFlash, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 }

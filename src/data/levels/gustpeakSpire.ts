@@ -10,7 +10,10 @@ function buildMap(): string[] {
   wallRowWithGaps(grid, 14, [[14, 15]]);
 
   // A wide chasm splits off a high ledge — only Gale heroes can glide
-  // across it to reach the ledge and its cache.
+  // across it to reach the ledge and its cache. The ledge is walled off on
+  // both sides so the chasm is the only way up, not just a detour.
+  fillRect(grid, 1, 1, 9, 2, '#');
+  fillRect(grid, 20, 1, 28, 2, '#');
   fillRect(grid, 9, 3, 20, 6, '^');
   fillRect(grid, 10, 1, 19, 2, '.');
 

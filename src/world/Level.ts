@@ -270,8 +270,9 @@ export class Level {
    * projectiles, abilities, the turret) reads and sounds the same. */
   private applyDamageToEnemy(e: Enemy, amount: number): void {
     const wasAlive = e.alive;
-    e.takeDamage(amount);
-    this.spawnDamageNumber(e.pos, Math.round(amount), '#fff2c2', e.def.isBoss ?? false);
+    const dealt = Math.max(1, Math.round(amount - (e.def.armor ?? 0)));
+    e.takeDamage(dealt);
+    this.spawnDamageNumber(e.pos, dealt, '#fff2c2', e.def.isBoss ?? false);
     this.triggerHitStop(e.def.isBoss ? 0.03 : 0.05);
     this.triggerShake(e.def.isBoss ? 0.1 : 0.15);
     audio.sfxHitEnemy();

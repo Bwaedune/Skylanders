@@ -1,6 +1,6 @@
 import type { Game, Screen } from '../engine/Game';
 import { Level } from '../world/Level';
-import { getLevel } from '../data/levels/index';
+import { getLevel, FINALE_LEVEL_ID } from '../data/levels/index';
 import { getCharacter } from '../data/characters';
 import { el, button } from './dom';
 import { buildAudioSettings } from './SettingsControls';
@@ -182,8 +182,11 @@ export class LevelScreen implements Screen {
     if (def.unlockCharacterId && !wasAlreadyUnlocked) {
       this.game.save.unlock(def.unlockCharacterId);
     }
+    if (def.id === FINALE_LEVEL_ID) {
+      this.game.save.setStoryFlag('game-complete');
+    }
     this.showOverlay(
-      'Isle Secured!',
+      def.id === FINALE_LEVEL_ID ? 'The Isles Are Whole' : 'Isle Secured!',
       [
         {
           label: 'Continue',

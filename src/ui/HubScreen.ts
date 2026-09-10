@@ -29,6 +29,8 @@ export class HubScreen implements Screen {
       return card;
     });
 
+    const gameComplete = game.save.hasStoryFlag('game-complete');
+
     this.root = el('div', { class: 'screen' }, [
       el('div', { class: 'topbar' }, [
         el('div', { class: 'title', style: 'font-size:20px;color:#f6d132' }, ['Starfall Bastion']),
@@ -37,6 +39,18 @@ export class HubScreen implements Screen {
           el('span', {}, [`◆ ${save.shards} Hero Crystals`]),
         ]),
       ]),
+      ...(gameComplete
+        ? [
+            el(
+              'div',
+              {
+                style:
+                  'margin:12px 18px 0;padding:10px 16px;background:linear-gradient(90deg,#3a2f0f,#171c2c);border:1px solid #f6d132;border-radius:10px;font-size:13px;font-weight:700;color:#f6d132;text-align:center',
+              },
+              ['🏆 The Aetherfall Isles are whole again — thank you for playing. Replay any isle, or keep collecting heroes in the Vault.'],
+            ),
+          ]
+        : []),
       el('div', { class: 'center-col', style: 'flex:0;padding:14px 18px;flex-direction:row;justify-content:space-between;align-items:center;gap:12px' }, [
         el('div', { style: 'display:flex;align-items:center;gap:14px' }, [
           el('div', { class: 'portrait', style: `width:64px;height:64px;background:radial-gradient(circle,${hero.body},#0d101c)` }, []),
