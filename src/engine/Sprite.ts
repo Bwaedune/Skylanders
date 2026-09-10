@@ -74,11 +74,27 @@ function bodyRadial(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: nu
 }
 
 const OUTLINE = 'rgba(15,10,8,0.55)';
+const STEEL = '#aab0ba';
+const STEEL_DARK = '#5b6068';
+const LEATHER = '#6b4a30';
+const LEATHER_DARK = '#42301f';
 
 function outline(ctx: CanvasRenderingContext2D, width = 1.6): void {
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = width;
   ctx.stroke();
+}
+
+/** A small metal rivet/stud, used across several characters' gear. */
+function rivet(ctx: CanvasRenderingContext2D, x: number, y: number, r = 1.1, color = STEEL): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath();
+  ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.35, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 export function drawCreature(
@@ -217,6 +233,30 @@ function drawWolf(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState
     ctx.stroke();
   }
 
+  // war-harness: crossed leather straps with a metal buckle, so this reads
+  // as a fighting animal that's been armored up, not a plain wolf
+  ctx.strokeStyle = LEATHER_DARK;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(-10, -4);
+  ctx.lineTo(6, 6);
+  ctx.moveTo(-10, 6);
+  ctx.lineTo(6, -4);
+  ctx.stroke();
+  ctx.fillStyle = bodyRadial(ctx, -2, 1, 3, STEEL);
+  ctx.beginPath();
+  ctx.arc(-2, 1, 2.6, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 1);
+  // small studded pauldron on the back
+  ctx.fillStyle = bodyRadial(ctx, -3, -8, 4.5, LEATHER);
+  ctx.beginPath();
+  ctx.ellipse(-3, -8, 4.5, 3.2, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 1);
+  rivet(ctx, -4.5, -8.5);
+  rivet(ctx, -1.5, -8);
+
   // head with a distinctly pointed snout
   ctx.fillStyle = bodyRadial(ctx, 13, -5, 8, v.body);
   ctx.beginPath();
@@ -245,11 +285,26 @@ function drawWolf(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState
   outline(ctx, 1.1);
   eyeDot(ctx, 15, -6, v.eye);
 
-  // legs
+  // spiked collar at the neck junction
+  ctx.fillStyle = STEEL;
+  for (const cx of [5, 8, 11]) {
+    ctx.beginPath();
+    ctx.moveTo(cx - 1.6, 0);
+    ctx.lineTo(cx, -4.5);
+    ctx.lineTo(cx + 1.6, 0);
+    ctx.closePath();
+    ctx.fill();
+    outline(ctx, 0.8);
+  }
+
+  // legs with metal bracers
   ctx.fillStyle = darken(v.accent, 0.1);
   const legOffset = Math.sin(s.walkPhase * Math.PI * 2) * 4;
   ctx.fillRect(-9 + legOffset, 6, 4, 8);
   ctx.fillRect(5 - legOffset, 6, 4, 8);
+  ctx.fillStyle = STEEL_DARK;
+  ctx.fillRect(-9 + legOffset, 8, 4, 1.8);
+  ctx.fillRect(5 - legOffset, 8, 4, 1.8);
   if (s.attackFlash > 0) {
     ctx.fillStyle = `rgba(255,120,30,${s.attackFlash})`;
     ctx.beginPath();
@@ -304,9 +359,66 @@ function drawAnglerfish(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: Dra
   ctx.lineTo(4, -14);
   ctx.fill();
   outline(ctx, 1.1);
+  // popped coat collar at the gills
+  ctx.fillStyle = bodyRadial(ctx, 0, 6, 6, '#2b2440');
+  ctx.beginPath();
+  ctx.moveTo(-6, 2);
+  ctx.lineTo(-2, 9);
+  ctx.lineTo(-8, 8);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.beginPath();
+  ctx.moveTo(4, 3);
+  ctx.lineTo(8, 9);
+  ctx.lineTo(2, 8);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
+  // barnacle studs on the shoulder
+  rivet(ctx, -4, -6, 1, '#dfe8ea');
+  rivet(ctx, -1, -8, 0.9, '#dfe8ea');
+
+  // harpoon, carried alongside the body — a captain's boarding weapon
+  ctx.save();
+  ctx.rotate(-0.5);
+  ctx.strokeStyle = LEATHER_DARK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-6, 10);
+  ctx.lineTo(-6, 34);
+  ctx.stroke();
+  ctx.fillStyle = bodyRadial(ctx, -6, 8, 4, STEEL);
+  ctx.beginPath();
+  ctx.moveTo(-6, 0);
+  ctx.lineTo(-2, 10);
+  ctx.lineTo(-6, 8);
+  ctx.lineTo(-10, 10);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.restore();
 }
 
 function drawRam(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
+  // warhammer strapped across the back, resting above the body
+  ctx.save();
+  ctx.rotate(-0.35);
+  ctx.strokeStyle = LEATHER_DARK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-14, -16);
+  ctx.lineTo(-2, 4);
+  ctx.stroke();
+  ctx.fillStyle = bodyRadial(ctx, -16, -20, 6, STEEL);
+  ctx.fillRect(-22, -25, 14, 9);
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 1.4;
+  ctx.strokeRect(-22, -25, 14, 9);
+  ctx.fillStyle = STEEL_DARK;
+  ctx.fillRect(-22, -25, 14, 2.5);
+  ctx.restore();
+
   // low, stout, barrel-shaped body — short and wide, the opposite of the wolf
   ctx.fillStyle = bodyRadial(ctx, 0, 3, 14, v.body);
   ctx.beginPath();
@@ -323,6 +435,15 @@ function drawRam(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState)
       ctx.stroke();
     }
   }
+  // riveted chest plate, strapped on over the wool
+  ctx.fillStyle = bodyRadial(ctx, -1, 4, 8, STEEL);
+  ctx.beginPath();
+  ctx.ellipse(-1, 4, 7.5, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 1.2);
+  rivet(ctx, -5, 2);
+  rivet(ctx, 3, 2);
+  rivet(ctx, -1, 8);
 
   ctx.fillStyle = bodyRadial(ctx, 12, -4, 7, v.body);
   ctx.beginPath();
@@ -360,6 +481,9 @@ function drawRam(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState)
   ctx.fillStyle = darken(v.accent, 0.1);
   ctx.fillRect(-9 + legOffset, 10, 5, 6);
   ctx.fillRect(5 - legOffset, 10, 5, 6);
+  ctx.fillStyle = STEEL_DARK;
+  ctx.fillRect(-9 + legOffset, 14, 5, 2);
+  ctx.fillRect(5 - legOffset, 14, 5, 2);
   if (s.attackFlash > 0) {
     ctx.strokeStyle = `rgba(200,180,150,${s.attackFlash})`;
     ctx.lineWidth = 3;
@@ -389,11 +513,37 @@ function drawHawk(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState
     ctx.stroke();
   }
 
+  // quiver of arrows slung on the back
+  ctx.save();
+  ctx.rotate(0.3);
+  ctx.fillStyle = bodyRadial(ctx, -12, 2, 4, LEATHER);
+  ctx.fillRect(-15, -8, 6, 14);
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-15, -8, 6, 14);
+  for (const fx of [-14, -12, -10]) {
+    ctx.strokeStyle = v.accent;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(fx, -8);
+    ctx.lineTo(fx, -14);
+    ctx.stroke();
+  }
+  ctx.restore();
+
   ctx.fillStyle = bodyRadial(ctx, 0, 0, 12, v.body);
   ctx.beginPath();
   ctx.ellipse(0, 0, 12, 9, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx);
+  // chest strap
+  ctx.strokeStyle = LEATHER_DARK;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(-8, -5);
+  ctx.lineTo(4, 6);
+  ctx.stroke();
+
   ctx.fillStyle = bodyRadial(ctx, 11, -5, 7, v.body);
   ctx.beginPath();
   ctx.ellipse(11, -5, 7, 6, 0, 0, Math.PI * 2);
@@ -407,6 +557,23 @@ function drawHawk(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState
   ctx.fill();
   outline(ctx, 1);
   eyeDot(ctx, 14, -7, v.eye);
+  // flight goggles pushed up on the forehead
+  ctx.strokeStyle = LEATHER_DARK;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(9, -11);
+  ctx.lineTo(13, -12.5);
+  ctx.stroke();
+  ctx.fillStyle = bodyRadial(ctx, 9, -11, 2, STEEL);
+  ctx.beginPath();
+  ctx.arc(9, -11, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 0.8);
+  ctx.fillStyle = bodyRadial(ctx, 13, -12.5, 2, STEEL);
+  ctx.beginPath();
+  ctx.arc(13, -12.5, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 0.8);
   if (s.attackFlash > 0) {
     ctx.strokeStyle = `rgba(180,230,255,${s.attackFlash})`;
     ctx.lineWidth = 2;
@@ -419,17 +586,52 @@ function drawHawk(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState
 }
 
 function drawGoblin(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
+  // gear-rig backpack, peeking out behind the body
+  ctx.fillStyle = bodyRadial(ctx, -8, -2, 5, STEEL_DARK);
+  ctx.beginPath();
+  ctx.ellipse(-8, -2, 4, 6, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.save();
+  ctx.translate(-8, -2);
+  ctx.rotate(s.walkPhase * Math.PI * 2);
+  ctx.strokeStyle = STEEL;
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * 1.5, Math.sin(a) * 1.5);
+    ctx.lineTo(Math.cos(a) * 3.2, Math.sin(a) * 3.2);
+    ctx.stroke();
+  }
+  ctx.restore();
+  rivet(ctx, -8, -2, 1.4);
+
   ctx.fillStyle = bodyRadial(ctx, 0, 2, 11, v.body);
   ctx.beginPath();
   ctx.ellipse(0, 2, 10, 12, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx);
-  // patchwork straps
-  ctx.strokeStyle = darken(v.body, 0.35);
-  ctx.lineWidth = 1.4;
+  // leather apron with a tool pouch
+  ctx.fillStyle = bodyRadial(ctx, 0, 5, 8, LEATHER);
   ctx.beginPath();
-  ctx.moveTo(-7, -3);
-  ctx.lineTo(6, 8);
+  ctx.moveTo(-6, -4);
+  ctx.lineTo(6, -4);
+  ctx.lineTo(5, 10);
+  ctx.lineTo(-5, 10);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1.2);
+  ctx.fillStyle = LEATHER_DARK;
+  ctx.fillRect(-4, 3, 5, 4);
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 0.8;
+  ctx.strokeRect(-4, 3, 5, 4);
+  ctx.strokeStyle = darken(LEATHER, 0.3);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-6, -4);
+  ctx.lineTo(6, -4);
   ctx.stroke();
 
   // big bat-like ear jutting out to the side — the goblin's signature feature
@@ -462,6 +664,20 @@ function drawGoblin(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawSta
   ctx.fill();
   outline(ctx, 1);
   eyeDot(ctx, 6, -13, v.eye);
+  // tinkerer's goggles, pushed up on the forehead
+  ctx.strokeStyle = LEATHER_DARK;
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.moveTo(-3, -17);
+  ctx.lineTo(6, -18.5);
+  ctx.stroke();
+  for (const gx of [-3, 6]) {
+    ctx.fillStyle = bodyRadial(ctx, gx, gx === -3 ? -17 : -18.5, 2.2, STEEL);
+    ctx.beginPath();
+    ctx.arc(gx, gx === -3 ? -17 : -18.5, 2, 0, Math.PI * 2);
+    ctx.fill();
+    outline(ctx, 0.8);
+  }
   // wrench arm
   const swing = Math.sin(s.walkPhase * Math.PI * 2) * 6;
   ctx.strokeStyle = '#6d727c';
@@ -493,6 +709,22 @@ function drawGoblin(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawSta
 }
 
 function drawJester(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
+  const sway = Math.sin(s.walkPhase * Math.PI * 2) * 4;
+  // tattered cape trailing behind
+  ctx.globalAlpha = 0.8;
+  ctx.fillStyle = darken(v.accent, 0.35);
+  ctx.beginPath();
+  ctx.moveTo(-6, -8);
+  ctx.lineTo(-16 + sway * 0.3, -4);
+  ctx.lineTo(-13 + sway * 0.5, 2);
+  ctx.lineTo(-18 + sway * 0.3, 6);
+  ctx.lineTo(-12, 10);
+  ctx.lineTo(-6, 6);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.globalAlpha = 1;
+
   ctx.globalAlpha = 0.88;
   ctx.fillStyle = bodyRadial(ctx, 0, 0, 12, v.body);
   ctx.beginPath();
@@ -511,6 +743,36 @@ function drawJester(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawSta
     ctx.closePath();
     ctx.fill();
   }
+  ctx.globalAlpha = 1;
+  // ruffled collar
+  ctx.fillStyle = '#f2f2f2';
+  for (const dx of [-6, -2, 2, 6]) {
+    ctx.beginPath();
+    ctx.arc(dx, -9, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 0.8;
+  for (const dx of [-6, -2, 2, 6]) {
+    ctx.beginPath();
+    ctx.arc(dx, -9, 2.2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // dagger at the hip
+  ctx.save();
+  ctx.rotate(0.5);
+  ctx.fillStyle = bodyRadial(ctx, 8, 6, 3, STEEL);
+  ctx.beginPath();
+  ctx.moveTo(6, 2);
+  ctx.lineTo(8, 12);
+  ctx.lineTo(10, 2);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.fillStyle = LEATHER_DARK;
+  ctx.fillRect(6.5, -1, 3, 3.5);
+  ctx.restore();
+
   ctx.globalAlpha = 0.88;
   // jester hat, 3 points
   ctx.fillStyle = v.accent;
@@ -550,6 +812,19 @@ function drawPlant(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawStat
   ctx.lineTo(8, 4);
   ctx.stroke();
 
+  // woven vine belt with a seed-pod pouch
+  ctx.strokeStyle = darken(v.accent, 0.15);
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(-9, 5);
+  ctx.quadraticCurveTo(0, 8, 9, 5);
+  ctx.stroke();
+  ctx.fillStyle = bodyRadial(ctx, 0, 9, 4, darken(v.accent, 0.1));
+  ctx.beginPath();
+  ctx.ellipse(0, 9, 3.6, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 1);
+
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2 + s.walkPhase;
     const px = Math.cos(a) * 10;
@@ -568,6 +843,24 @@ function drawPlant(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawStat
   }
   eyeDot(ctx, 4, -2, v.eye);
   eyeDot(ctx, -4, -2, v.eye);
+
+  // gnarled wooden staff, held to the side
+  ctx.strokeStyle = LEATHER_DARK;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(15, 12);
+  ctx.lineTo(18, -14);
+  ctx.stroke();
+  ctx.fillStyle = bodyRadial(ctx, 18, -16, 5, v.accent);
+  ctx.beginPath();
+  ctx.ellipse(18, -16, 4.5, 5, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.fillStyle = lighten(v.accent, 0.2);
+  ctx.beginPath();
+  ctx.ellipse(16, -19, 2, 3, 0.5, 0, Math.PI * 2);
+  ctx.fill();
+
   if (s.attackFlash > 0) {
     ctx.strokeStyle = `rgba(100,220,90,${s.attackFlash})`;
     ctx.lineWidth = 3;
@@ -579,6 +872,39 @@ function drawPlant(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawStat
 }
 
 function drawCrystalMage(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
+  // draping cloak flaps behind the crystal core
+  const drift = Math.sin(s.walkPhase * Math.PI * 2) * 1.5;
+  ctx.fillStyle = darken(v.accent, 0.4);
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  ctx.moveTo(-6, -4);
+  ctx.lineTo(-13 + drift, 6);
+  ctx.lineTo(-9, 13);
+  ctx.lineTo(-3, 4);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.beginPath();
+  ctx.moveTo(6, -4);
+  ctx.lineTo(13 - drift, 6);
+  ctx.lineTo(9, 13);
+  ctx.lineTo(3, 4);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.globalAlpha = 1;
+  // faint glowing rune marks on the cloak
+  ctx.fillStyle = v.eye;
+  ctx.shadowColor = v.eye;
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.arc(-9 + drift * 0.5, 5, 1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(9 - drift * 0.5, 5, 1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
   ctx.fillStyle = bodyRadial(ctx, 0, -2, 14, v.body);
   ctx.beginPath();
   ctx.moveTo(0, -16);
@@ -615,6 +941,30 @@ function drawCrystalMage(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: Dr
   outline(ctx, 1);
   eyeDot(ctx, 3, -3, v.eye, 2);
   eyeDot(ctx, -3, -3, v.eye, 2);
+
+  // floating crystal blade, held ready at the side
+  ctx.save();
+  ctx.translate(14, -1);
+  ctx.rotate(-0.3);
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = bodyRadial(ctx, 0, 0, 5, lighten(v.accent, 0.2));
+  ctx.beginPath();
+  ctx.moveTo(0, -13);
+  ctx.lineTo(3, 0);
+  ctx.lineTo(0, 13);
+  ctx.lineTo(-3, 0);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1);
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -13);
+  ctx.lineTo(0, 13);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
   if (s.attackFlash > 0) {
     ctx.fillStyle = `rgba(200,120,255,${s.attackFlash})`;
     ctx.beginPath();
@@ -624,6 +974,28 @@ function drawCrystalMage(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: Dr
 }
 
 function drawGiantRock(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
+  // a massive banded stone warhammer, resting beside the titan
+  ctx.save();
+  ctx.rotate(-0.2);
+  ctx.strokeStyle = LEATHER_DARK;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(20, 20);
+  ctx.lineTo(26, -10);
+  ctx.stroke();
+  ctx.fillStyle = bodyRadial(ctx, 26, -20, 11, darken(v.body, 0.1));
+  ctx.beginPath();
+  ctx.ellipse(26, -20, 11, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 2);
+  ctx.strokeStyle = STEEL_DARK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(17, -20);
+  ctx.lineTo(35, -20);
+  ctx.stroke();
+  ctx.restore();
+
   ctx.fillStyle = bodyRadial(ctx, 0, 4, 22, v.body);
   ctx.beginPath();
   ctx.ellipse(0, 4, 22, 18, 0, 0, Math.PI * 2);
@@ -651,11 +1023,37 @@ function drawGiantRock(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: Draw
   ctx.ellipse(-6, -14, 5, 5, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx, 1.2);
+  ctx.strokeStyle = STEEL_DARK;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(-6, -14, 5, 0.3, Math.PI - 0.3);
+  ctx.stroke();
   ctx.fillStyle = bodyRadial(ctx, 8, -18, 6, v.accent);
   ctx.beginPath();
   ctx.ellipse(8, -18, 6, 6, 0, 0, Math.PI * 2);
   ctx.fill();
   outline(ctx, 1.2);
+  ctx.strokeStyle = STEEL_DARK;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(8, -18, 6, 0.3, Math.PI - 0.3);
+  ctx.stroke();
+  rivet(ctx, 8, -22, 1.2);
+
+  // glowing rune emblem set into the chest
+  ctx.strokeStyle = v.eye;
+  ctx.shadowColor = v.eye;
+  ctx.shadowBlur = 5;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(2, 5, 4.5, 0, Math.PI * 2);
+  ctx.moveTo(2, 0.5);
+  ctx.lineTo(2, 9.5);
+  ctx.moveTo(-2.5, 5);
+  ctx.lineTo(6.5, 5);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
   eyeDot(ctx, 12, -2, v.eye, 3.5);
   eyeDot(ctx, -2, -4, v.eye, 3.5);
   const legOffset = Math.sin(s.walkPhase * Math.PI * 2) * 5;
@@ -676,6 +1074,31 @@ function drawGiantRock(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: Draw
 }
 
 function drawGiantMagma(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: DrawState) {
+  // forge-hammer, its obsidian head lit from within by the forge crack
+  ctx.save();
+  ctx.rotate(-0.25);
+  ctx.strokeStyle = '#2a1410';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(19, 20);
+  ctx.lineTo(25, -9);
+  ctx.stroke();
+  ctx.fillStyle = bodyRadial(ctx, 25, -19, 10, '#241210');
+  ctx.beginPath();
+  ctx.ellipse(25, -19, 10, 7.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline(ctx, 2);
+  ctx.strokeStyle = v.accent;
+  ctx.shadowColor = v.accent;
+  ctx.shadowBlur = 6;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(17, -19);
+  ctx.lineTo(33, -19);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
   ctx.fillStyle = bodyRadial(ctx, 0, 2, 21, v.body);
   ctx.beginPath();
   ctx.ellipse(0, 2, 21, 19, 0, 0, Math.PI * 2);
@@ -705,6 +1128,30 @@ function drawGiantMagma(ctx: CanvasRenderingContext2D, v: CreatureVisual, s: Dra
   ctx.moveTo(10, -12);
   ctx.lineTo(16, -4);
   ctx.stroke();
+
+  // obsidian shoulder plate, chained on over the molten hide
+  ctx.fillStyle = '#241210';
+  ctx.beginPath();
+  ctx.moveTo(-14, -14);
+  ctx.lineTo(-2, -18);
+  ctx.lineTo(2, -10);
+  ctx.lineTo(-10, -6);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 1.3);
+  ctx.strokeStyle = `rgba(255,150,60,${crackPhase * 0.6})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-11, -13);
+  ctx.lineTo(-3, -14);
+  ctx.stroke();
+  ctx.strokeStyle = STEEL_DARK;
+  ctx.lineWidth = 1.2;
+  for (const cx of [-13, -9, -5]) {
+    ctx.beginPath();
+    ctx.arc(cx, -16, 1.4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   eyeDot(ctx, 10, -6, v.eye, 3.5);
   eyeDot(ctx, -4, -8, v.eye, 3.5);
