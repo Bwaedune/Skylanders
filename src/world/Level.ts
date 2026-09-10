@@ -15,6 +15,10 @@ import { Ambience } from './Ambience';
 
 export type LevelStatus = 'playing' | 'won' | 'lost';
 
+/** Slight vertical squash applied to the whole scene so the camera reads as
+ * tilted down at the world instead of a flat, straight-overhead view. */
+const CAMERA_TILT = 0.9;
+
 interface Effect {
   pos: Vec2;
   color: string;
@@ -499,6 +503,11 @@ export class Level {
     ctx.fillRect(0, 0, viewW, viewH);
 
     ctx.save();
+    // A slight vertical squash before the camera translate simulates a
+    // camera tilted down at the world rather than a flat overhead view.
+    ctx.translate(viewW / 2, viewH / 2);
+    ctx.scale(1, CAMERA_TILT);
+    ctx.translate(-viewW / 2, -viewH / 2);
     this.camera.apply(ctx);
 
     this.map.render(ctx, this.def.biome, this.time);

@@ -2,6 +2,28 @@ import { hashRandom2, makeRng } from '../engine/Rand';
 
 export const TILE_SIZE = 40;
 
+const WALL_EXTRUDE_H = 14;
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.padEnd(6, '0');
+  const num = parseInt(full, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function mixHex(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = hexToRgb(a);
+  const [br, bg, bb] = hexToRgb(b);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function shade(hex: string, amount: number): string {
+  return amount >= 0 ? mixHex(hex, '#ffffff', amount) : mixHex(hex, '#000000', -amount);
+}
+
 export type TileCode = '.' | '#' | '^' | 'L' | 'W' | ' ';
 
 export interface TileMapDef {
@@ -93,7 +115,23 @@ export class TileMap {
       }
     }
 
-    // Ambient occlusion: darken the floor edge where it meets a wall/chasm.
+    // A few long crack lines running across several tiles, so the ground
+    // reads as one continuous slab rather than a grid of identical squares.
+    this.paintGroundCracks(ctx, biome);
+
+    // Wall "front faces" extruded down into the open tile below, so walls
+    // read as blocks with height instead of flat painted squares — this is
+    // what most sells the slightly-tilted, less top-down camera angle.
+    for (let gy = 0; gy < this.height; gy++) {
+      for (let gx = 0; gx < this.width; gx++) {
+        if (this.tileAt(gx, gy) !== '#' || this.neighborSolid(gx, gy + 1)) continue;
+        this.paintWallExtrusion(ctx, gx * TILE_SIZE, gy * TILE_SIZE, gx, gy, biome);
+      }
+    }
+
+    // Ambient occlusion: darken the floor edge where it meets a wall/chasm
+    // to the left, right, or below (the extrusion above already covers the
+    // top edge with a real drawn face instead of a flat shadow).
     for (let gy = 0; gy < this.height; gy++) {
       for (let gx = 0; gx < this.width; gx++) {
         const t = this.tileAt(gx, gy);
@@ -105,6 +143,68 @@ export class TileMap {
     }
 
     return canvas;
+  }
+
+  private paintWallExtrusion(
+    ctx: CanvasRenderingContext2D,
+    px: number,
+    py: number,
+    gx: number,
+    gy: number,
+    biome: BiomePalette,
+  ): void {
+    const topY = py + TILE_SIZE;
+    const grad = ctx.createLinearGradient(0, topY, 0, topY + WALL_EXTRUDE_H);
+    grad.addColorStop(0, biome.wall);
+    grad.addColorStop(1, biome.wallShade);
+    ctx.fillStyle = grad;
+    ctx.fillRect(px, topY, TILE_SIZE, WALL_EXTRUDE_H);
+
+    const rng = makeRng(gx * 511 + gy * 733 + 5);
+    ctx.strokeStyle = 'rgba(0,0,0,0.32)';
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 2; i++) {
+      const lx = px + (i + 0.5) * (TILE_SIZE / 2) + (rng() - 0.5) * 3;
+      ctx.beginPath();
+      ctx.moveTo(lx, topY);
+      ctx.lineTo(lx, topY + WALL_EXTRUDE_H);
+      ctx.stroke();
+    }
+    // crisp edge where the block's top meets its face
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(px, topY, TILE_SIZE, 2);
+    // grime speckle on the face
+    for (let i = 0; i < 2; i++) {
+      const sx = px + rng() * TILE_SIZE;
+      const sy = topY + rng() * WALL_EXTRUDE_H;
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1 + rng(), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  private paintGroundCracks(ctx: CanvasRenderingContext2D, biome: BiomePalette): void {
+    const rng = makeRng(1337);
+    const count = Math.max(3, Math.round((this.width * this.height) / 90));
+    for (let i = 0; i < count; i++) {
+      const gx = Math.floor(rng() * this.width);
+      const gy = Math.floor(rng() * this.height);
+      if (this.tileAt(gx, gy) !== '.') continue;
+      let x = gx * TILE_SIZE + rng() * TILE_SIZE;
+      let y = gy * TILE_SIZE + rng() * TILE_SIZE;
+      ctx.strokeStyle = shade(biome.floor, -0.35);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      const segments = 2 + Math.floor(rng() * 3);
+      for (let s = 0; s < segments; s++) {
+        x += (rng() - 0.5) * 26;
+        y += (rng() - 0.5) * 26;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
   }
 
   private neighborSolid(gx: number, gy: number): boolean {
@@ -121,7 +221,11 @@ export class TileMap {
     biome: BiomePalette,
     t: TileCode,
   ): void {
-    const base = t === '.' && (gx + gy) % 2 === 0 ? biome.floorAlt : biome.floor;
+    const rng = makeRng(gx * 9176 + gy * 5323 + 7);
+
+    // Continuous, non-repeating tone variation instead of a strict on/off
+    // checker — each tile is its own random blend of the two floor tones.
+    const base = t === '.' ? mixHex(biome.floor, biome.floorAlt, rng()) : biome.floor;
     ctx.fillStyle = base;
     ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
 
@@ -133,24 +237,75 @@ export class TileMap {
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
     }
 
-    // Fine speckle grain, deterministic per tile so it never flickers.
-    const rng = makeRng(gx * 9176 + gy * 5323 + 7);
-    const speckleCount = 4;
+    // A soft irregular stain/moss blotch on some tiles, breaking up any
+    // remaining regularity in the grid.
+    if (t === '.' && rng() > 0.62) {
+      const bx = px + rng() * TILE_SIZE;
+      const by = py + rng() * TILE_SIZE;
+      const br = 6 + rng() * 10;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(rng() * Math.PI);
+      ctx.scale(1, 0.55 + rng() * 0.3);
+      ctx.fillStyle = shade(base, rng() > 0.5 ? -0.16 : 0.08);
+      ctx.globalAlpha = 0.16;
+      ctx.beginPath();
+      ctx.arc(0, 0, br, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // A few small pebbles/grit chips, plus the fine speckle grain.
+    const speckleCount = 5;
     for (let i = 0; i < speckleCount; i++) {
       const sx = px + rng() * TILE_SIZE;
       const sy = py + rng() * TILE_SIZE;
       const light = rng() > 0.5;
-      ctx.fillStyle = light ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.09)';
-      const r = 1 + rng() * 2.2;
+      ctx.fillStyle = light ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)';
+      const r = 0.8 + rng() * 2.2;
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, Math.PI * 2);
       ctx.fill();
     }
+    if (t === '.' && rng() > 0.55) {
+      const pcx = px + rng() * TILE_SIZE;
+      const pcy = py + rng() * TILE_SIZE;
+      const pr = 1.4 + rng() * 1.6;
+      ctx.fillStyle = shade(base, -0.4);
+      ctx.beginPath();
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2;
+        const rr = pr * (0.7 + rng() * 0.5);
+        const vx = pcx + Math.cos(a) * rr;
+        const vy = pcy + Math.sin(a) * rr;
+        if (k === 0) ctx.moveTo(vx, vy);
+        else ctx.lineTo(vx, vy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.beginPath();
+      ctx.arc(pcx - pr * 0.3, pcy - pr * 0.3, pr * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // Faint mortar seam between floor tiles.
-    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    // Irregular flagstone seams — only some edges, so it reads as uneven
+    // flagstone rather than a uniform grid.
+    ctx.strokeStyle = 'rgba(0,0,0,0.14)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(px + 0.5, py + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+    if (rng() > 0.4) {
+      ctx.beginPath();
+      ctx.moveTo(px + TILE_SIZE, py + rng() * 4);
+      ctx.lineTo(px + TILE_SIZE, py + TILE_SIZE - rng() * 4);
+      ctx.stroke();
+    }
+    if (rng() > 0.4) {
+      ctx.beginPath();
+      ctx.moveTo(px + rng() * 4, py + TILE_SIZE);
+      ctx.lineTo(px + TILE_SIZE - rng() * 4, py + TILE_SIZE);
+      ctx.stroke();
+    }
 
     if (t === 'L') {
       // A few cracked-rock lines across the vent floor.
@@ -259,14 +414,9 @@ export class TileMap {
   }
 
   private paintEdgeAO(ctx: CanvasRenderingContext2D, px: number, py: number, gx: number, gy: number): void {
+    // Note: the north edge (wall above) is deliberately not handled here —
+    // paintWallExtrusion already draws a real shaded face into that space.
     const size = 12;
-    if (this.neighborSolid(gx, gy - 1)) {
-      const g = ctx.createLinearGradient(0, py, 0, py + size);
-      g.addColorStop(0, 'rgba(0,0,0,0.30)');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(px, py, TILE_SIZE, size);
-    }
     if (this.neighborSolid(gx, gy + 1)) {
       const g = ctx.createLinearGradient(0, py + TILE_SIZE - size, 0, py + TILE_SIZE);
       g.addColorStop(0, 'rgba(0,0,0,0)');
